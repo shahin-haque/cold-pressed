@@ -181,58 +181,22 @@ export default function HeroSection() {
           </div>
         </div>
 
-        {/* Secure Payment Badge */}
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-4">
-          <div className="flex items-center gap-6 px-6 py-3 bg-white/80 backdrop-blur-sm rounded-full shadow-lg border border-gray-100">
-            <div className="flex items-center gap-2">
-              <svg
-                className="w-5 h-5 text-green-600"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span className="text-sm text-gray-600 font-medium">Secure Checkout</span>
-            </div>
-            <div className="flex items-center gap-1">
-              {[
-                { name: "Visa", color: "#1A1F71" },
-                { name: "MC", color: "#FF5F00" },
-                { name: "Amex", color: "#006FCF" },
-                { name: "PayPal", color: "#003087" },
-              ].map((card, i) => (
-                <span
-                  key={card.name}
-                  className="w-8 h-5 rounded flex items-center justify-center text-[10px] font-bold"
-                  style={{ backgroundColor: card.color, color: "#fff" }}
-                >
-                  {card.name}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Scroll Indicator */}
-          <div className="flex flex-col items-center gap-2 animate-bounce">
-            <span className="text-sm text-gray-400">Scroll to explore</span>
-            <svg
-              className="w-6 h-6 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 14l-7 7m0 0l-7-7m7 7V3"
-              />
-            </svg>
-          </div>
+        {/* Scroll Indicator */}
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-2 animate-bounce">
+          <span className="text-sm text-gray-400">Scroll to explore</span>
+          <svg
+            className="w-6 h-6 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 14l-7 7m0 0l-7-7m7 7V3"
+            />
+          </svg>
         </div>
       </div>
     </section>
