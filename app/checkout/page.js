@@ -4,10 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "../context/CartContext";
+import { PaymentMethodIcon } from "../components/PaymentMethodIcons";
 
 export default function CheckoutPage() {
-  const { cartItems, cartTotal, clearCart, addToCart, saveOrderTimestamp } =
-    useCart();
+  const { cartItems, cartTotal, clearCart, saveOrderTimestamp } = useCart();
   const [step, setStep] = useState(1); // 1: Shipping, 2: Payment
   const [orderComplete, setOrderComplete] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -41,6 +41,17 @@ export default function CheckoutPage() {
   const [upsellSuccess, setUpsellSuccess] = useState(false);
   const [upsellPaymentMethod, setUpsellPaymentMethod] = useState("card");
   const [errors, setErrors] = useState({});
+
+  // Constants
+  const FREE_SHIPPING_THRESHOLD = 50;
+  const STANDARD_SHIPPING_COST = 5.99;
+  const shippingCost = cartTotal >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_COST;
+  const total = cartTotal + shippingCost;
+
+  // Payment method components
+  const PaymentMethodTabIcon = ({ methodId, style }) => (
+    <PaymentMethodIcon method={methodId} className="w-5 h-5" style={style} />
+  );
 
   // Update form fields
   const handleShippingChange = (e) => {
@@ -120,7 +131,7 @@ export default function CheckoutPage() {
   const handlePlaceOrder = () => {
     if (!validatePayment()) return;
     setIsProcessing(true);
-    // Save shipping & payment for upsells
+
     localStorage.setItem("lastShippingInfo", JSON.stringify(shippingInfo));
     localStorage.setItem(
       "lastPaymentInfo",
@@ -130,7 +141,7 @@ export default function CheckoutPage() {
         expiry: paymentInfo.expiry,
       }),
     );
-    // Save current cart items before clearing for potential re-order
+
     const orderItems = cartItems.map((item) => ({
       id: item.id,
       name: item.name,
@@ -139,6 +150,7 @@ export default function CheckoutPage() {
       price: item.price,
       quantity: item.quantity,
     }));
+
     setTimeout(() => {
       setOrderComplete(true);
       saveOrderTimestamp(cartTotal, orderItems);
@@ -147,7 +159,6 @@ export default function CheckoutPage() {
     }, 2000);
   };
 
-  // Quick pay for upsell - go to payment section
   const handleUpsellPurchase = (product, size, price) => {
     setUpsellProduct(product);
     setUpsellSize(size);
@@ -155,7 +166,6 @@ export default function CheckoutPage() {
     setShowUpsellModal(true);
   };
 
-  // Confirm upsell payment
   const confirmUpsellPayment = () => {
     if (upsellPaymentMethod === "card" && !validatePayment()) return;
     setIsProcessing(true);
@@ -166,10 +176,13 @@ export default function CheckoutPage() {
     }, 1500);
   };
 
+  // Upsell modal + success states (kept mostly as-is from original)
+
   if (showUpsellModal && orderComplete) {
     const savedShipping = JSON.parse(
       localStorage.getItem("lastShippingInfo") || "{}",
     );
+
     return (
       <main className='pt-16 md:pt-20 min-h-screen bg-gray-50'>
         <div className='container-custom py-20'>
@@ -193,142 +206,43 @@ export default function CheckoutPage() {
               </p>
             </div>
 
-            {/* Payment Method Tabs */}
-            <div className='flex gap-2 mb-6'>
+            <div className="grid grid-cols-2 gap-2 mb-6">
               {[
-                { id: "card", label: "Credit Card" },
-                { id: "paypal", label: "PayPal" },
-                { id: "apple", label: "Apple Pay" },
-                { id: "google", label: "Google Pay" },
-              ].map((method) => (
-                <button
-                  key={method.id}
-                  onClick={() => setUpsellPaymentMethod(method.id)}
-                  className={`flex-1 py-3 px-2 rounded-xl border-2 flex items-center justify-center transition-all text-xs font-bold ${
-                    upsellPaymentMethod === method.id
-                      ? "border-primary bg-primary/5"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  {method.label}
-                </button>
-              ))}
+                { id: "card", label: "Credit Card", color: "#1A1F71" },
+                { id: "paypal", label: "PayPal", color: "#003087" },
+                { id: "apple", label: "Apple Pay", color: "#000000" },
+                { id: "google", label: "Google Pay", color: "#4285F4" },
+              ].map((method) => {
+                const isActive = upsellPaymentMethod === method.id;
+                return (
+                  <button
+                    key={method.id}
+                    onClick={() => setUpsellPaymentMethod(method.id)}
+                    className="flex-1 py-3 px-2 rounded-xl border-2 flex items-center justify-center transition-all text-xs font-bold"
+                    style={{
+                      borderColor: isActive ? method.color : "#e5e7eb",
+                      backgroundColor: isActive ? method.color + "1a" : "transparent",
+                      color: isActive ? method.color : "#374151",
+                    }}
+                  >
+                    {method.label}
+                  </button>
+                );
+              })}
             </div>
-
-            {/* Credit Card Form */}
-            {upsellPaymentMethod === "card" && (
-              <div className='space-y-4 text-left'>
-                <div>
-                  <label className='block text-sm font-medium mb-1'>
-                    Card Number
-                  </label>
-                  <input
-                    type='text'
-                    name='cardNumber'
-                    value={paymentInfo.cardNumber}
-                    onChange={handlePaymentChange}
-                    placeholder='1234 5678 9012 3456'
-                    className='w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary'
-                  />
-                </div>
-                <div>
-                  <label className='block text-sm font-medium mb-1'>
-                    Name on Card
-                  </label>
-                  <input
-                    type='text'
-                    name='cardName'
-                    value={paymentInfo.cardName}
-                    onChange={handlePaymentChange}
-                    placeholder='John Doe'
-                    className='w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary'
-                  />
-                </div>
-                <div className='grid grid-cols-2 gap-4'>
-                  <div>
-                    <label className='block text-sm font-medium mb-1'>
-                      Expiry
-                    </label>
-                    <input
-                      type='text'
-                      name='expiry'
-                      value={paymentInfo.expiry}
-                      onChange={handlePaymentChange}
-                      placeholder='MM/YY'
-                      className='w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary'
-                    />
-                  </div>
-                  <div>
-                    <label className='block text-sm font-medium mb-1'>
-                      CVV
-                    </label>
-                    <input
-                      type='text'
-                      name='cvv'
-                      value={paymentInfo.cvv}
-                      onChange={handlePaymentChange}
-                      placeholder='123'
-                      className='w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary'
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* PayPal */}
-            {upsellPaymentMethod === "paypal" && (
-              <div className='text-center py-6 bg-gray-50 rounded-xl'>
-                <p
-                  className='text-xl font-bold mb-2'
-                  style={{ color: "#003087" }}
-                >
-                  PayPal
-                </p>
-                <p className='text-gray-600 text-sm'>
-                  You will be redirected to PayPal.
-                </p>
-              </div>
-            )}
-
-            {/* Apple Pay */}
-            {upsellPaymentMethod === "apple" && (
-              <div className='text-center py-6 bg-gray-50 rounded-xl'>
-                <p
-                  className='text-xl font-bold mb-2'
-                  style={{ color: "#000000" }}
-                >
-                  Apple Pay
-                </p>
-                <p className='text-gray-600 text-sm'>
-                  Pay securely with Touch ID or Face ID.
-                </p>
-              </div>
-            )}
-
-            {/* Google Pay */}
-            {upsellPaymentMethod === "google" && (
-              <div className='text-center py-6 bg-gray-50 rounded-xl'>
-                <p
-                  className='text-xl font-bold mb-2'
-                  style={{ color: "#4285F4" }}
-                >
-                  Google Pay
-                </p>
-                <p className='text-gray-600 text-sm'>
-                  Pay instantly with your saved cards.
-                </p>
-              </div>
-            )}
 
             <button
               onClick={confirmUpsellPayment}
               disabled={isProcessing}
-              className={`w-full btn-primary py-3 text-lg mt-6 ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`w-full btn-primary py-3 text-lg mt-6 ${
+                isProcessing ? "opacity-50 cursor-not-allowed" : ""
+              }`}
             >
               {isProcessing
                 ? "Processing..."
                 : `Pay $${upsellPrice?.toFixed(2)}`}
             </button>
+
             <button
               onClick={() => {
                 setShowUpsellModal(false);
@@ -349,7 +263,6 @@ export default function CheckoutPage() {
       <main className='pt-16 md:pt-20 min-h-screen bg-gradient-to-b from-green-50 to-white'>
         <div className='container-custom py-20'>
           <div className='max-w-lg mx-auto bg-white rounded-3xl p-10 text-center shadow-lg border-2 border-green-100'>
-            {/* Celebration Icon with Animation */}
             <div className='relative'>
               <div className='w-24 h-24 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce'>
                 <svg
@@ -366,7 +279,6 @@ export default function CheckoutPage() {
                   />
                 </svg>
               </div>
-              {/* Decorative stars */}
               <div className='absolute top-0 left-1/2 -translate-x-1/2 -mt-2 text-2xl'>
                 ⭐
               </div>
@@ -376,18 +288,19 @@ export default function CheckoutPage() {
               Thank You!
             </h2>
             <p className='text-gray-600 text-lg mb-2'>You're all set!</p>
+
             <div className='p-4 bg-green-50 rounded-xl mb-6'>
               <p className='text-green-700 font-semibold'>
                 {upsellProduct?.name}
               </p>
               <p className='text-green-600'>${upsellPrice?.toFixed(2)}</p>
             </div>
+
             <p className='text-gray-500 text-sm mb-8'>
               Your order has been added to your original purchase. Confirmation
               email on its way!
             </p>
 
-            {/* Celebratory buttons */}
             <div className='flex flex-col gap-3'>
               <Link
                 href='/'
@@ -450,12 +363,14 @@ export default function CheckoutPage() {
             <h1 className='text-3xl font-bold mb-4'>Order Confirmed!</h1>
             <p className='text-gray-600 mb-2'>Thank you for your order!</p>
             <p className='text-gray-500 text-sm mb-8'>
-              Order #COLD{Date.now().toString().slice(-6)} has been placed
-              successfully.
+              Order #COLD
+              {Math.floor(Math.random() * 1000000)
+                .toString()
+                .padStart(6, "0")}{" "}
+              has been placed successfully.
               <br />A confirmation email will be sent to {shippingInfo.email}
             </p>
 
-            {/* Upsell Section - 15% Discount (always available on Order Confirmed) */}
             <div className='mt-8 p-6 bg-green-50 rounded-xl'>
               <p className='font-bold mb-2 text-primary'>
                 Special Offer 15%OFF - Save 15%!
@@ -508,18 +423,11 @@ export default function CheckoutPage() {
     );
   }
 
-  const FREE_SHIPPING_THRESHOLD = 50;
-  const STANDARD_SHIPPING_COST = 5.99;
-  const shippingCost =
-    cartTotal >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_COST;
-  const total = cartTotal + shippingCost;
-
   return (
-    <main className='pt-16 md:pt-20 min-h-screen bg-gray-50'>
+    <main className='pt-[64px] md:pt-[72px] min-h-screen bg-gray-50'>
       <div className='container-custom py-12'>
         <h1 className='text-3xl md:text-4xl font-bold mb-8'>Checkout</h1>
 
-        {/* Progress Steps */}
         <div className='flex items-center justify-center mb-12'>
           {[
             { num: 1, label: "Shipping" },
@@ -560,7 +468,9 @@ export default function CheckoutPage() {
               </span>
               {i < 1 && (
                 <div
-                  className={`w-16 h-1 mx-4 rounded ${step > s.num ? "bg-primary" : "bg-gray-200"}`}
+                  className={`w-16 h-1 mx-4 rounded ${
+                    step > s.num ? "bg-primary" : "bg-gray-200"
+                  }`}
                 />
               )}
             </div>
@@ -568,9 +478,7 @@ export default function CheckoutPage() {
         </div>
 
         <div className='grid lg:grid-cols-3 gap-8'>
-          {/* Form Section */}
           <div className='lg:col-span-2'>
-            {/* Step 1: Shipping */}
             {step === 1 && (
               <div className='bg-white rounded-2xl p-6 shadow-sm'>
                 <h2 className='text-xl font-bold mb-6'>Shipping Information</h2>
@@ -750,34 +658,44 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            {/* Step 2: Payment */}
             {step === 2 && (
               <div className='bg-white rounded-2xl p-6 shadow-sm'>
-                {/* Payment Method Tabs */}
-                <div className='flex gap-3 mb-6'>
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3 mb-6">
                   {[
-                    { id: "card", label: "Credit Card" },
-                    { id: "paypal", label: "PayPal" },
-                    { id: "apple", label: "Apple Pay" },
-                    { id: "google", label: "Google Pay" },
-                  ].map((method) => (
-                    <button
-                      key={method.id}
-                      onClick={() => setPaymentMethod(method.id)}
-                      className={`flex-1 py-4 px-4 rounded-xl border-2 flex items-center justify-center transition-all font-bold ${
-                        paymentMethod === method.id
-                          ? "border-primary bg-primary/5"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      {method.label}
-                    </button>
-                  ))}
+                    { id: "card", label: "Credit Card", color: "#1A1F71" },
+                    { id: "paypal", label: "PayPal", color: "#003087" },
+                    { id: "apple", label: "Apple Pay", color: "#000000" },
+                    { id: "google", label: "Google Pay", color: "#4285F4" },
+                  ].map((method) => {
+                    const isActive = paymentMethod === method.id;
+                    const activeColor = method.color;
+
+                    return (
+                      <button
+                        key={method.id}
+                        onClick={() => setPaymentMethod(method.id)}
+                        className="flex-1 py-3 sm:py-4 px-2 sm:px-4 rounded-xl border-2 flex items-center justify-center transition-all font-bold gap-1 sm:gap-2"
+                        style={{
+                          borderColor: isActive ? activeColor : "#e5e7eb",
+                          backgroundColor: isActive ? activeColor + "10" : "transparent",
+                          color: isActive ? activeColor : "#374151",
+                        }}
+                      >
+                        <PaymentMethodTabIcon methodId={method.id} style={{ color: isActive ? activeColor : "#6b7280" }} />
+                        <span className="text-xs sm:text-sm">{method.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
 
-                {/* Credit Card Form */}
                 {paymentMethod === "card" && (
-                  <div className='space-y-4'>
+                  <div className="space-y-4 p-4 bg-gradient-to-br from-[#1A1F71]/5 to-[#1A1F71]/10 rounded-xl border border-[#1A1F71]/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <PaymentMethodIcon method="card" className="w-5 h-5" style={{ color: "#1A1F71" }} />
+                      <span className="font-semibold" style={{ color: "#1A1F71" }}>
+                        Credit Card Details
+                      </span>
+                    </div>
                     <div>
                       <label className='block text-sm font-medium mb-2'>
                         Card Number *
@@ -812,6 +730,7 @@ export default function CheckoutPage() {
                         className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary ${
                           errors.cardName ? "border-red-500" : "border-gray-200"
                         }`}
+                        placeholder='John Doe'
                       />
                       {errors.cardName && (
                         <p className='text-red-500 text-sm mt-1'>
@@ -862,7 +781,6 @@ export default function CheckoutPage() {
                       </div>
                     </div>
 
-                    {/* Billing Address */}
                     <div className='mt-4'>
                       <label className='block text-sm font-medium mb-2'>
                         Billing Address
@@ -893,83 +811,74 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                {/* PayPal */}
                 {paymentMethod === "paypal" && (
-                  <div className='text-center py-8 bg-gray-50 rounded-xl'>
-                    <p
-                      className='text-3xl font-bold mb-4'
-                      style={{ color: "#003087" }}
-                    >
-                      PayPal
-                    </p>
-                    <p className='text-gray-600 mb-2'>
-                      You will be redirected to PayPal to complete your payment.
-                    </p>
-                    <p className='text-sm text-green-600 flex items-center justify-center gap-1'>
-                      <svg
-                        className='w-4 h-4'
-                        fill='currentColor'
-                        viewBox='0 0 20 20'
+                  <div className="py-8 bg-gradient-to-br from-[#003087]/5 to-[#003087]/10 rounded-xl border border-[#003087]/20">
+                    <div className="flex flex-col items-center">
+                      <PaymentMethodIcon method="paypal" className="w-12 h-12 mb-3" style={{ color: "#003087" }} />
+                      <p
+                        className="text-2xl font-bold mb-2"
+                        style={{ color: "#003087" }}
                       >
-                        <path
-                          fillRule='evenodd'
-                          d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z'
-                          clipRule='evenodd'
-                        />
-                      </svg>
-                      Buyer Protection Included
-                    </p>
+                        PayPal
+                      </p>
+                      <p className="text-gray-600 mb-4 text-center px-4">
+                        You will be redirected to PayPal to complete your payment securely.
+                      </p>
+                      <div className="flex items-center gap-2 text-sm text-[#003087]/70">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span>Buyer Protection</span>
+                      </div>
+                    </div>
                   </div>
                 )}
 
-                {/* Apple Pay */}
                 {paymentMethod === "apple" && (
-                  <div className='text-center py-8 bg-gray-50 rounded-xl'>
-                    <p
-                      className='text-3xl font-bold mb-4'
-                      style={{ color: "#000000" }}
-                    >
-                      Apple Pay
-                    </p>
-                    <p className='text-gray-600 mb-2'>
-                      Pay securely with Touch ID or Face ID.
-                    </p>
-                    <p className='text-sm text-gray-500'>
-                      Fast, secure checkout with Apple Pay
-                    </p>
-                  </div>
-                )}
-
-                {/* Google Pay */}
-                {paymentMethod === "google" && (
-                  <div className='text-center py-8 bg-gray-50 rounded-xl'>
-                    <p
-                      className='text-3xl font-bold mb-4'
-                      style={{ color: "#4285F4" }}
-                    >
-                      Google Pay
-                    </p>
-                    <p className='text-gray-600 mb-2'>
-                      Pay instantly with your saved cards.
-                    </p>
-                    <p className='text-sm text-green-600 flex items-center justify-center gap-1'>
-                      <svg
-                        className='w-4 h-4'
-                        fill='currentColor'
-                        viewBox='0 0 20 20'
+                  <div className="py-8 bg-gradient-to-br from-black/5 to-black/10 rounded-xl border border-black/10">
+                    <div className="flex flex-col items-center">
+                      <PaymentMethodIcon method="apple" className="w-12 h-12 mb-3" />
+                      <p
+                        className="text-2xl font-bold mb-2"
                       >
-                        <path
-                          fillRule='evenodd'
-                          d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z'
-                          clipRule='evenodd'
-                        />
-                      </svg>
-                      Secure & Encrypted
-                    </p>
+                        Apple Pay
+                      </p>
+                      <p className="text-gray-600 mb-4 text-center px-4">
+                        Pay securely with Touch ID or Face ID.
+                      </p>
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span>Secure Authentication</span>
+                      </div>
+                    </div>
                   </div>
                 )}
 
-                {/* Security Badge */}
+                {paymentMethod === "google" && (
+                  <div className="py-8 bg-gradient-to-br from-[#4285F4]/5 to-[#4285F4]/10 rounded-xl border border-[#4285F4]/20">
+                    <div className="flex flex-col items-center">
+                      <PaymentMethodIcon method="google" className="w-12 h-12 mb-3" style={{ color: "#4285F4" }} />
+                      <p
+                        className="text-2xl font-bold mb-2"
+                        style={{ color: "#4285F4" }}
+                      >
+                        Google Pay
+                      </p>
+                      <p className="text-gray-600 mb-4 text-center px-4">
+                        Pay instantly with your saved cards.
+                      </p>
+                      <div className="flex items-center gap-2 text-sm text-[#4285F4]/70">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span>Fast & Secure</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className='flex items-center gap-3 mt-6 p-4 bg-gray-50 rounded-xl'>
                   <svg
                     className='w-5 h-5 text-green-600'
@@ -987,7 +896,6 @@ export default function CheckoutPage() {
                   </span>
                 </div>
 
-                {/* Place Order Button */}
                 <button
                   onClick={handlePlaceOrder}
                   disabled={isProcessing}
@@ -995,29 +903,9 @@ export default function CheckoutPage() {
                     isProcessing ? "opacity-50 cursor-not-allowed" : ""
                   }`}
                 >
-                  {isProcessing ? (
-                    <span className='flex items-center justify-center gap-2'>
-                      <svg className='animate-spin h-5 w-5' viewBox='0 0 24 24'>
-                        <circle
-                          className='opacity-25'
-                          cx='12'
-                          cy='12'
-                          r='10'
-                          stroke='currentColor'
-                          strokeWidth='4'
-                          fill='none'
-                        />
-                        <path
-                          className='opacity-75'
-                          fill='currentColor'
-                          d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z'
-                        />
-                      </svg>
-                      Processing Order...
-                    </span>
-                  ) : (
-                    `Place Order - $${total.toFixed(2)}`
-                  )}
+                  {isProcessing
+                    ? "Processing Order..."
+                    : `Place Order - $${total.toFixed(2)}`}
                 </button>
 
                 <button
@@ -1030,7 +918,6 @@ export default function CheckoutPage() {
             )}
           </div>
 
-          {/* Order Summary */}
           <div className='lg:col-span-1'>
             <div className='bg-white p-6 rounded-2xl shadow-sm sticky top-24'>
               <h2 className='text-xl font-bold mb-6'>Order Summary</h2>
@@ -1074,7 +961,7 @@ export default function CheckoutPage() {
                   </span>
                 </div>
                 {shippingCost > 0 && (
-                  <p className='text-xs text-green-600 '>
+                  <p className='text-xs text-green-600'>
                     Free shipping on orders $50+
                   </p>
                 )}

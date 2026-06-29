@@ -4,6 +4,7 @@ import { CartDrawer } from "./components/CartDrawer";
 import { CartIcon } from "./components/CartIcon";
 import { CartProvider } from "./context/CartContext";
 import { Navigation } from "./components/Navigation";
+import { ShippingBanner } from "./components/ShippingBanner";
 import { Footer } from "./components/Footer";
 
 const dmSans = DM_Sans({
@@ -22,6 +23,8 @@ export default function RootLayout({ children }) {
     <html lang='en'>
       <body className={dmSans.className}>
         <CartProvider>
+          {/* Banner above fixed navbar */}
+          <ShippingBanner />
           <Navigation />
           {children}
           <Footer />
